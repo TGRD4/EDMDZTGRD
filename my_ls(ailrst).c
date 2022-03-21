@@ -10,7 +10,10 @@
 #include<stdbool.h>
 #include<pwd.h>//passwd
 #include<grp.h>//group
+#define SIZE 1024
 
+
+/*
 char* filemode(mode_t m,char* s);
 int filelink(mode_t m,char* name);
 char* filetime(time_t t,char* str);
@@ -18,6 +21,7 @@ void print(char* name);
 bool big(char str);
 int cmp(char* str1,char* str2);
 
+*/
 //解析文件权限
 /*
     S_ISLNK (st_mode)   判断是否为符号连接
@@ -77,7 +81,7 @@ int filelink(mode_t m,char* name)
 		DIR* dp=opendir(name);//打开给定目录
 		if(dp==NULL)
 		{
-			//perror("opendir");//输出错误信息
+			perror("opendir");//输出错误信息
 			return -1;
 		}
 /*
@@ -122,7 +126,7 @@ void print(char* name)
 	group=getgrgid(passwd->pw_gid);//获取组ID
 	//getgrgid()用来依参数 gid 指定的组识别码逐一搜索组文件, 找到时便将该组的数据以 group 结构返回
 	
-	char s[1024]={};
+	char s[SIZE]={};
 	char* file=getcwd(s,sizeof(s));
 /*
 定义函数： char * getcwd(char * buf, size_t size);
@@ -137,11 +141,12 @@ void print(char* name)
 */
 	if(stat(name,&buf))
 	{
-		//perror("stat");
+		perror("stat");
 		return;
 	}
-	char str[101]={};
-	printf("%9d",buf.st_ino);//-i
+
+	char str[SIZE]={};
+	printf("%12d",buf.st_ino);//-i   //
 	printf("%6ld ",buf.st_blocks/2);//块数（除以2）//-s
 	printf("%s ",filemode(buf.st_mode,str));//文件权限
 	printf("%2d ",filelink(buf.st_mode,name));//文件属性
@@ -195,23 +200,25 @@ int cmp(char* str1,char* str2)
 
 int main()
 { 
-	char* name[1024];//保存所有文件名称
-	char s[1024]={};
+	char* name[SIZE]={};//保存所有文件名称
+	char s[SIZE]={};
 	char* file=getcwd(s,sizeof(s));
 	DIR* dp=opendir(file);
 	
 	if(dp==NULL)
 	{
-		//perror("opendir");//显示文件打开错误信息
-		return -1;
+		perror("opendir");//显示文件打开错误信息
+		exit(EXIT_FAILURE);
 	}
 	int cnt=0;
 	struct dirent* dr=readdir(dp);
 	for(;dr;dr=readdir(dp))
 	{
-		if(dr->d_name[0]=='.') continue;//-a
+		if(dr->d_name[0]=='.') 
+			continue;//-a
 		name[cnt++]=dr->d_name;
 	}
+	
 	/*
 	//对文件进行字母排序
 	for(int i=0;i<cnt-1;i++) 
@@ -230,7 +237,8 @@ int main()
 	
 	//对文件进行时间排序 -t
 
-	long *fileTime[1024]={};
+
+	long *fileTime[SIZE]={};
 	//struct stat buf={};
 	for(int i=0;i<cnt;i++)
 	{
@@ -268,6 +276,7 @@ int main()
 	{
 		print(name[i]);
 	}
+	closedir(dp);
 	return 0;
 }
 
