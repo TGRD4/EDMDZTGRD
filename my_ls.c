@@ -1,4 +1,4 @@
-/*ls -isl*/
+/*ls -aislt*/
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -28,6 +28,8 @@ int cmp(char* str1,char* str2);
     S_ISSOCK (st_mode)  是否为socket（套接字）/SOCKET文件.
     S_ISFIFO是否是一个FIFO文件
 */
+
+
 char* filemode(mode_t m,char* s)
 {
 	if (S_ISREG(m))	s[0]='-';//一般文件
@@ -204,12 +206,13 @@ int main()
 		return -1;
 	}
 	int cnt=0;
-	for(struct dirent* dr=readdir(dp);dr;dr=readdir(dp))
+	struct dirent* dr=readdir(dp);
+	for(;dr;dr=readdir(dp))
 	{
 		if(dr->d_name[0]=='.') continue;//-a
-		name[cnt]=dr->d_name;
-		cnt++;
+		name[cnt++]=dr->d_name;
 	}
+	/*
 	//对文件进行字母排序
 	for(int i=0;i<cnt-1;i++)
 	{
@@ -223,6 +226,36 @@ int main()
 			}
 		}
 	}
+	*/
+	
+	//对文件进行时间排序
+
+	long *fileTime[1024]={};
+	//struct stat buf={};
+	for(int i=0;i<cnt;i++)
+	{
+		struct stat buf={};
+		stat((char*)name[i],&buf);
+		fileTime[i]=(long*)buf.st_mtime;
+		for(int j=i+1;j<cnt;j++)
+		{
+			stat((char*)name[j],&buf);
+			fileTime[j]=(long*)buf.st_mtime;
+			if(fileTime[i]<fileTime[j])
+			{
+				
+				long *t=fileTime[i];
+				fileTime[i]=fileTime[j];
+				fileTime[j]=t;
+				
+				char *temp=name[i];
+				name[i]=name[j];
+				name[j]=temp;
+			}
+		}
+	}
+
+
 	for(int i=0;i<cnt;i++)
 	{
 		print(name[i]);
@@ -246,6 +279,6 @@ struct stat
     unsigned long st_blocks; //number of blocks allocated 占用文件区块的个数, 每一区块大小为512 个字节.（块数）
     time_t st_atime; //time of lastaccess 文件最近一次被存取或被执行的时间, 一般只有在用mknod、utime、read、write 与tructate 时改变.
     time_t st_mtime; //time of last modification 文件最后一次被修改的时间, 一般只有在用mknod、utime 和write 时才会改变
-    time_t st_ctime; //time of last change i-node 最近一次被更改的时间, 此参数会在文件所有者、组、权限被更改时更新
+    time_t st_mtime; //time of last change i-node 最近一次被更改的时间, 此参数会在文件所有者、组、权限被更改时更新
 };
 */
