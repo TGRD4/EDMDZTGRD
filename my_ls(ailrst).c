@@ -1,4 +1,4 @@
-/*ls -aislt*/
+/*ls -aisrtl*/
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
@@ -214,7 +214,7 @@ int main()
 	}
 	/*
 	//对文件进行字母排序
-	for(int i=0;i<cnt-1;i++)
+	for(int i=0;i<cnt-1;i++) 
 	{
 		for(int j=i;j<cnt;j++)
 		{
@@ -228,7 +228,7 @@ int main()
 	}
 	*/
 	
-	//对文件进行时间排序
+	//对文件进行时间排序 -t
 
 	long *fileTime[1024]={};
 	//struct stat buf={};
@@ -253,6 +253,14 @@ int main()
 				name[j]=temp;
 			}
 		}
+	}
+
+	//逆序 -r
+	for(int i=0,j=cnt;i<cnt/2,j>cnt/2;i++,j--)
+	{
+		char *ttemp=name[i];
+		name[i]=name[j];
+		name[j]=ttemp;
 	}
 
 
