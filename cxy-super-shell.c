@@ -1,16 +1,16 @@
-#include<stdio.h>
-#include<string.h>
-#include<curses.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <curses.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <fcntl.h>
-#include<time.h>
-#include<dirent.h>
-#include<pwd.h>//passwd
-#include<grp.h>//group
-#include<signal.h>
+#include <time.h>
+#include <dirent.h>
+#include <pwd.h>//passwd
+#include <grp.h>//group
+#include <signal.h>
 #define SIZE 1024
 #define MAX 100
 
@@ -18,7 +18,7 @@ int cnt;
 char history[MAX][SIZE];
 char path[SIZE];
 char s[MAX];
-void print_ls();
+void print_ls(int flag);
 int input();
 void order(char *s);
 void cd();
@@ -37,8 +37,19 @@ char *check_order(char *my_input);
 void clear_file(char* file_name);
 
 /* ls */
-void print_ls()
+void print_ls(int flag)
 {
+    /* ls & -- 单后台运行ls */
+    if(flag) {
+        if(daemon(1,1)<0)// 0：根目录 ; 1：当前目录 
+        {
+            perror("error daemon ");
+            exit(1);
+        }
+	    sleep(4);
+        putchar('\n');
+        printf("[1] %d\n",getpid());
+    }
     int sum=0;
     char* name[SIZE]={};
 	char str[SIZE]={};
@@ -77,6 +88,10 @@ void print_ls()
         }
 	}
 	closedir(dp);
+    if(flag) {
+        printf("\n[1]  + %d done       ls --color=tty",getpid());
+        exit(0);//单后台运行后退出(否则占用进程空间导致系统变卡)
+    }
     putchar('\n');
     return ;
 }
@@ -92,10 +107,17 @@ int input()
 /* 识别命令 */
 void order(char *s)
 {
+    int flag=0;
     char home_path[]="/home";
     /* ls */
     if(strcmp(s,"ls")==0) {
-        print_ls();
+        print_ls(flag);
+    }
+
+    /* ls & */
+    else if(strcmp(s,"ls &")==0) {
+        flag=1;
+        print_ls(flag);
     }
 
     /* cd - 历史目录 */
@@ -373,7 +395,7 @@ void put_in()//遇到一次空格后面的就不接受了
         scanf("%s",&in_put);
         strcpy(save[sum_save++],in_put);
     }while(strcmp(sign,in_put)!=0);
-    for(int j=0;j<sum_save;j++) {
+    for(int j=0;j<sum_save-1;j++) {
         printf("%s\n",save[j]);
     }
     getchar();
@@ -463,11 +485,26 @@ void my_oocopy_cat(char *s)
 {
     char opath[SIZE]={};
     int n=0;
+    int flag=0;
     for(int i=4;i<strlen(s);i++) {
         if(s[i]==' ') {
             continue;
         }
+        if(s[i]=='&') {
+            flag=1;
+            break;
+        }
         opath[n++]=s[i];
+    }
+    /* cat & "filenam" -- 单后台运行显示指定文件 */
+    if(flag) {
+        if(daemon(1,1)<0)// 0：根目录 ; 1：当前目录 
+        {
+            perror("error daemon ");
+            exit(1);
+        }
+	    sleep(4);
+        putchar('\n');
     }
     FILE *fp=fopen(opath,"r");
     if(fp==NULL) {
@@ -478,6 +515,10 @@ void my_oocopy_cat(char *s)
         if((ch=fgetc(fp))!=EOF) {
             putchar(ch);
         }
+    }
+    if(flag) {
+        printf("\n[1]  + %d done       cat %s",getpid(),opath);
+        exit(0);//后台运行后退出
     }
     putchar('\n');
     fclose(fp);   
@@ -510,3 +551,7 @@ int main()
     } 
     return 0;
 }
+/* 
+ctrl + z 挂起 T
+ctrl + c 中断 
+*/
