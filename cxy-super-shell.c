@@ -22,6 +22,8 @@ void print_ls(int flag);
 int input();
 void order(char *s);
 void cd();
+void mkdirr();
+void mkcdd();
 void put_in();
 void my_copy_cd();
 void my_ocopy_cd();
@@ -68,8 +70,10 @@ void print_ls(int flag)
 			continue;
 		name[sum++]=dr->d_name;
 	}
+    int oo=0;
     for(int i=0;i<sum;i++)
 	{
+        oo=1;
         if(stat(name[i],&buf))
 	    {
 		    perror("stat");
@@ -92,7 +96,9 @@ void print_ls(int flag)
         printf("\n[1]  + %d done       ls --color=tty",getpid());
         exit(0);//单后台运行后退出(否则占用进程空间导致系统变卡)
     }
-    putchar('\n');
+    if(oo) {
+        putchar('\n');
+    }
     return ;
 }
 
@@ -118,6 +124,16 @@ void order(char *s)
     else if(strcmp(s,"ls &")==0) {
         flag=1;
         print_ls(flag);
+    }
+
+    /* mkdir 创建目录 */
+    else if(memcmp(s,"mkdir ",6)==0) {
+        mkdirr();
+    }
+    else if(memcmp(s,"mkcd ",5)==0) {
+        strcpy(history[cnt++],path);
+        mkcdd();
+        strcpy(history[cnt++],path);
     }
 
     /* cd - 历史目录 */
@@ -236,6 +252,42 @@ void order(char *s)
     return;
 }
 
+/* 创建新目录 */
+void mkdirr()
+{
+    int newname_sum=0;
+    char newdir_name[MAX]={};
+    int i=6;
+    while(s[i]==' ') {
+        i++;
+    }
+    for(;i<strlen(s)&&s[i]!=' ';i++) {
+        newdir_name[newname_sum++]=s[i];
+    }
+    mkdir(newdir_name,0777);
+}
+
+/* 创建并切换到新目录 */
+void mkcdd() 
+{
+    int newname_sum=0;
+    char newdir_name[MAX]={};
+    int i=5;
+    while(s[i]==' ') {
+        i++;
+    }
+    for(;i<strlen(s)&&s[i]!=' ';i++) {
+        newdir_name[newname_sum++]=s[i];
+    }
+    printf("%s\n",newdir_name);
+    mkdir(newdir_name,0777);
+    char new_path[SIZE]={};
+    strcpy(new_path,path);
+    strcat(new_path,"/");
+    strcat(new_path,newdir_name);
+    chdir(new_path);
+    strcpy(path,new_path);
+}
 
 /* 确定命令 */
 char* check_order(char *my_input)
@@ -546,6 +598,10 @@ int main()
         printf("\033[1;35m[%s] $ \033[0m",path);
         if(!input(s)) {
             continue;
+        }
+        if(strcmp(s,"exit")==0) {
+            printf("\033[1;30m%s\033[0m","Bye Bye ~\n");
+            exit(0);
         }
         order(s);
     } 
