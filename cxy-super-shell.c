@@ -19,8 +19,11 @@ int cnt;
 char history[MAX][SIZE];
 char path[SIZE];
 char s[MAX];
+void LS_R(char *dir,int len);
+int is_file(char *s);
+int cunzai(char *ss);
 void print_ls(int flag);
-void ls_input();
+void ls_input(int flag);
 int input();
 void printt_ls();
 void order(char *s);
@@ -44,15 +47,45 @@ void add_in_file(char* file_name,char* my_input);
 char *check_name(char *file_name);
 char *check_order(char *my_input);
 void clear_file(char* file_name);
-
 int cmp(char* str1,char* str2);
 char* filemode(mode_t m,char* s);
 int filelink(mode_t m,char* name);
 char* filetime(time_t t,char* str);
 bool big(char str);
 
+/* ls -R */
+void LS_R(char *dir,int len)
+{
+	DIR *dp;
+	struct dirent *nowdir;
+	struct stat buf;
+	if((dp=opendir(dir))==NULL) {
+		perror("open a dir ");
+		return ;
+	}
+	chdir(dir);
+	while((nowdir=readdir(dp)))  
+    {
+		lstat(nowdir->d_name,&buf);
+		if(S_ISDIR(buf.st_mode))  
+		{
+        	if(strcmp(nowdir->d_name,".")==0||strcmp(nowdir->d_name,"..")==0)
+				continue;	 
+			printf("%*s\033[1;34m%s\033[0m/\n",len,"",nowdir->d_name);
+			LS_R(nowdir->d_name,len+4);  
+		} 
+        else if(buf.st_mode & S_IXUSR || buf.st_mode & S_IXGRP || buf.st_mode & S_IXOTH)
+			printf("%*s\033[1;32m%s\033[0m\n",len,"",nowdir->d_name);
+        else if(S_ISFIFO(buf.st_mode))
+            printf("%*s\033[40;33m%s\033[0m\n",len,"",nowdir->d_name);//33 yellow 
+        else 
+            printf("%*s%s\n",len,"",nowdir->d_name);
+	}
+    closedir(dp);	
+	chdir("..");    
+}
 
-
+/* 判断文件类型 */
 char* filemode(mode_t m,char* s)
 {
 	if (S_ISREG(m))	s[0]='-';//一般文件
@@ -64,7 +97,6 @@ char* filemode(mode_t m,char* s)
 	else if (S_ISSOCK(m)) s[0]='s';
 	else s[0]='?';
 	s[1]='\0';
-
 	strcat(s,S_IRUSR&m?"r":"-");
 	strcat(s,S_IWUSR&m?"w":"-");
 	strcat(s,S_IXUSR&m?"x":"-");
@@ -77,21 +109,19 @@ char* filemode(mode_t m,char* s)
 	return s;
 }
 
+/* 判断文件链接数 */
 int filelink(mode_t m,char* name)
 {
 	if(S_ISREG(m)) return 1;
-	else if(S_ISDIR(m)) 
-	{
+	else if(S_ISDIR(m)) {
 		int ll_cnt=0;
 		DIR* dp=opendir(name);
-		if(dp==NULL)
-		{
+		if(dp==NULL) {
 			perror("opendir ");
 			return -1;
 		}
 		for(struct dirent* dr=readdir(dp);dr;dr=readdir(dp)) {
-			if(dr->d_type==DT_DIR)
-			{
+			if(dr->d_type==DT_DIR) {
 				ll_cnt++;
 			}
 		}
@@ -100,7 +130,7 @@ int filelink(mode_t m,char* name)
 	}
 }
 
-
+/* 显示文件最后修改时间 */
 char* filetime(time_t t,char* str)
 {
 	struct tm* nt=localtime(&t); 
@@ -108,29 +138,28 @@ char* filetime(time_t t,char* str)
 	return str;
 }
 
+/* 判断大小写 */
 bool big(char str)
 {
 	if(str>='A'&&str<='Z') return true;
 	return false;
 }
 
+/* 大小写转化 */
 int cmp(char* str1,char* str2)
 {
 	for(int i=0;str1[i]!='\0'&&str2[i]!='\0';i++)
 	{
 		if(str1[i]=='.'||str2[i]=='.') break;
-		if((big(str1[i])&&big(str2[i]))||(!big(str1[i])&&!big(str2[i])))
-		{
+		if((big(str1[i])&&big(str2[i]))||(!big(str1[i])&&!big(str2[i]))) {
 			if(str1[i]>str2[i]) return 1;
 			else if(str1[i]<str2[i]) return 0;
 		} 
-		if(big(str1[i])&&!big(str2[i]))
-		{
+		if(big(str1[i])&&!big(str2[i])) {
 			if((str1[i]+32)>str2[i]) return 1;
 			else if((str1[i]+32)<str2[i]) return 0;
 		}
-		if(!big(str1[i])&&big(str2[i]))
-		{
+		if(!big(str1[i])&&big(str2[i])) {
 			if(str1[i]>(str2[i]+32)) return 1;
 			else if(str1[i]<(str2[i]+32)) return 0;
 		}
@@ -142,22 +171,21 @@ int cmp(char* str1,char* str2)
 /* ls - */
 void printt_ls()
 {
-    int the_order[MAX]={};
-    int ooder_sum=0;
     int ls_a=0;
     int ls_l=0;
     int ls_t=0;
     int ls_i=0;
     int ls_s=0;
     int ls_r=0;
+    int ls_R=0;
     if(s[4]==' ') {
         printf("please input a right and standard order !\n");
         return;
     }
     else {
+        int aoao=0;
         int okok=0;
-        for(int i=4;i<strlen(s)&&s[i]!=' ';i++) {
-            the_order[ooder_sum++]=s[i];
+        for(int i=4;i<strlen(s);i++) {
             if(s[i]=='a') {
                 ls_a=1;
             }
@@ -176,118 +204,181 @@ void printt_ls()
             else if(s[i]=='t') {
                 ls_t=1;
             }
+            else if(s[i]=='R') {
+                ls_R=1;
+            }
+            else if(s[i]==' ') {
+                continue;
+            }
+            else if(s[i]=='-') {
+                continue;
+            }
+            else if(s[i]=='>') {
+                aoao=1;
+                if(s[i+1]=='>') {
+                    aoao=2;
+                }
+                break;
+            }
             else {
                 printf("no such an order !\n");
                 return ;
             }
         }
-        char* name[MAX]={};
-        int sum=0;
-        DIR* dp=opendir(getcwd(path,sizeof(path)));
-        if(dp==NULL) {
-            perror("opendir ");
-            return;
+        char *nowdir=".";
+        if(ls_R==1)  {
+            LS_R(nowdir,0);
         }
-        struct dirent* dr=readdir(dp);
-        for(;dr;dr=readdir(dp))
-        {
-            if(dr->d_name[0]=='.'&&!ls_a) 
-                continue;
-            name[sum++]=dr->d_name;
-        }
-         
-        /* 字母排序 */
-        for(int i=0;i<sum-1;i++) {
-		    for(int j=i;j<sum;j++) {
-                if(cmp(name[i],name[j])==1) {
-                    char* temp=name[i];
-                    name[i]=name[j];
-                    name[j]=temp;
-                }
+        else {
+            char* name[MAX]={};
+            int sum=0;
+            DIR* dp=opendir(getcwd(path,sizeof(path)));
+            if(dp==NULL) {
+                perror("opendir ");
+                return;
             }
-        }
-        
-        /* -t 时间排序 */
-        if(ls_t) {
-            long *fileTime[SIZE]={};
-            for(int i=0;i<sum;i++)
-            {
-                struct stat buf={};
-                stat((char*)name[i],&buf);
-                fileTime[i]=(long*)buf.st_mtime;
-                for(int j=i+1;j<sum;j++)
-                {
-                    stat((char*)name[j],&buf);
-                    fileTime[j]=(long*)buf.st_mtime;
-                    if(fileTime[i]<fileTime[j])
-                    {
-                        long *t=fileTime[i];
-                        fileTime[i]=fileTime[j];
-                        fileTime[j]=t;
-                        char *temp=name[i];
+            struct dirent* dr=readdir(dp);
+            for(;dr;dr=readdir(dp)) {
+                if(dr->d_name[0]=='.'&&!ls_a) 
+                    continue;
+                name[sum++]=dr->d_name;
+            }
+
+            /* 字母排序 */
+            for(int i=0;i<sum-1;i++) {
+                for(int j=i;j<sum;j++) {
+                    if(cmp(name[i],name[j])==1) {
+                        char* temp=name[i];
                         name[i]=name[j];
                         name[j]=temp;
                     }
                 }
             }
-        }
+            /* -t 时间排序 */
+            if(ls_t) {
+                long *fileTime[SIZE]={};
+                for(int i=0;i<sum;i++)
+                {
+                    struct stat buf={};
+                    stat((char*)name[i],&buf);
+                    fileTime[i]=(long*)buf.st_mtime;
+                    for(int j=i+1;j<sum;j++)
+                    {
+                        stat((char*)name[j],&buf);
+                        fileTime[j]=(long*)buf.st_mtime;
+                        if(fileTime[i]<fileTime[j])
+                        {
+                            long *t=fileTime[i];
+                            fileTime[i]=fileTime[j];
+                            fileTime[j]=t;
+                            char *temp=name[i];
+                            name[i]=name[j];
+                            name[j]=temp;
+                        }
+                    }
+                }
+            }
 
-        /* -r 倒序 */
-        if(ls_r) {
-            for(int i=0,j=sum;i<sum/2,j>sum/2;i++,j--) {
-                char *ttemp=name[i];
-                name[i]=name[j];
-                name[j]=ttemp;
-            }
-        }
-        struct passwd *passwd;
-	    struct group *group;
-        struct stat buf={};
-        passwd=getpwuid(getuid());
-	    group=getgrgid(passwd->pw_gid);
-        for(int j=0;j<sum;j++)
-        {
-            if(j%6==0&&j&&!ls_l) {
-                printf("\n");
-            }
-            if(stat(name[j],&buf)) {
-                perror("stat ");
-                return;
-            }
-            char str[SIZE]={};
-            if(ls_i)    printf("%12d ",buf.st_ino);//-i      
-            if(ls_s)    printf("%6ld ",buf.st_blocks/2);//-s
-            if(ls_l)    printf("%s ",filemode(buf.st_mode,str));//文件权限
-            if(ls_l)    printf("%2d ",filelink(buf.st_mode,name[j]));//文件属性
-            if(ls_l)    printf("%s ",passwd->pw_name);//用户ID
-            if(ls_l)    printf("%s ",group->gr_name);//组ID
-            if(ls_l)    printf("%8ld ",buf.st_size);//文件大小
-            if(ls_l)    printf("%s ",filetime(buf.st_mtime,str));//文件最后修改时间
-            if(S_ISDIR(buf.st_mode))//若是目录（蓝）
-                    printf("\033[1;34m%s\033[0m",name[j]);//34 blue
-            else if(S_ISFIFO(buf.st_mode))//目录/FIFO文件（黄）
-                printf("\033[40;33m%s\033[0m",name[j]);//33 yellow 
-            else if(buf.st_mode & S_IXUSR || buf.st_mode & S_IXGRP || buf.st_mode & S_IXOTH)//可执行文件（绿）
-                printf("\033[1;32m%s\033[0m",name[j]);//32 green 
-            else 
-                printf("%s",name[j]);//普通文件直接打印 
-            if(ls_l)  {
-                okok=1;
-                printf("\n"); 
-            }
-            else printf("    ");
+            /* -r 倒序 */
+            if(ls_r) {
+                for(int i=0,j=sum-1;i<sum/2,j>sum/2-1;i++,j--) {
+                    char *ttemp=name[i];
+                    name[i]=name[j];
+                    name[j]=ttemp;
+                }
+            }   
             
+            struct passwd *passwd;
+            struct group *group;
+            struct stat buf={};
+            passwd=getpwuid(getuid());
+            group=getgrgid(passwd->pw_gid);
+            for(int j=0;j<sum;j++)
+            {
+                if(j%6==0&&j&&!ls_l) {
+                    printf("\n");
+                }
+                if(stat(name[j],&buf)) {
+                    perror("stat ");
+                    return;
+                }
+                char str[SIZE]={};
+                if(!aoao) {
+                    if(ls_i)    printf("%12d ",buf.st_ino);//-i      
+                    if(ls_s)    printf("%6ld ",buf.st_blocks/2);//-s
+                    if(ls_l)    printf("%s ",filemode(buf.st_mode,str));//文件权限
+                    if(ls_l)    printf("%2d ",filelink(buf.st_mode,name[j]));//文件属性
+                    if(ls_l)    printf("%s ",passwd->pw_name);//用户ID
+                    if(ls_l)    printf("%s ",group->gr_name);//组ID
+                    if(ls_l)    printf("%8ld ",buf.st_size);//文件大小
+                    if(ls_l)    printf("%s ",filetime(buf.st_mtime,str));//文件最后修改时间
+                    if(S_ISDIR(buf.st_mode))//若是目录（蓝）
+                            printf("\033[1;34m%s\033[0m",name[j]);//34 blue
+                    else if(S_ISFIFO(buf.st_mode))//目录/FIFO文件（黄）
+                        printf("\033[40;33m%s\033[0m",name[j]);//33 yellow 
+                    else if(buf.st_mode & S_IXUSR || buf.st_mode & S_IXGRP || buf.st_mode & S_IXOTH)//可执行文件（绿）
+                        printf("\033[1;32m%s\033[0m",name[j]);//32 green 
+                    else 
+                        printf("%s",name[j]);//普通文件直接打印   
+                    if(ls_l)  {
+                        okok=1;
+                        printf("\n"); 
+                    }
+                    else printf("    ");
+                }
+                else {
+                    FILE *fp;
+                    char input_file[MAX]={};
+                    int sum_inpput=0;
+                    int i=4;
+                    while(s[i]!='>') {
+                        i++;
+                    }
+                    if(s[i+1]=='>') {
+                        i++;
+                    }
+                    i++;
+                    while(s[i]==' ') {
+                        i++;
+                    }
+                    for(;i<strlen(s)&&s[i]!=' ';i++) {
+                        input_file[sum_inpput++]=s[i];
+                    }
+                    if(j==0&&aoao==1) {
+                        fp=fopen(input_file,"w");
+                    }
+                    else {
+                        fp=fopen(input_file,"a");
+                    }
+                    if(ls_i)    fprintf(fp,"%12d ",buf.st_ino);//-i      
+                    if(ls_s)    fprintf(fp,"%6ld ",buf.st_blocks/2);//-s
+                    if(ls_l)    fprintf(fp,"%s ",filemode(buf.st_mode,str));//文件权限
+                    if(ls_l)    fprintf(fp,"%2d ",filelink(buf.st_mode,name[j]));//文件属性
+                    if(ls_l)    fprintf(fp,"%s ",passwd->pw_name);//用户ID
+                    if(ls_l)    fprintf(fp,"%s ",group->gr_name);//组ID
+                    if(ls_l)    fprintf(fp,"%8ld ",buf.st_size);//文件大小
+                    if(ls_l)    fprintf(fp,"%s ",filetime(buf.st_mtime,str));//文件最后修改时间
+                    if(S_ISDIR(buf.st_mode))//若是目录（蓝）
+                            fprintf(fp,"%s",name[j]);//34 blue
+                    else if(S_ISFIFO(buf.st_mode))//目录/FIFO文件（黄）
+                        fprintf(fp,"%s",name[j]);//33 yellow 
+                    else if(buf.st_mode & S_IXUSR || buf.st_mode & S_IXGRP || buf.st_mode & S_IXOTH)//可执行文件（绿）
+                        fprintf(fp,"%s",name[j]);//32 green 
+                    else 
+                        fprintf(fp,"%s",name[j]);//普通文件直接打印 
+                    fprintf(fp,"%c",'\n'); 
+                    fclose(fp);
+                }
+            }
+            closedir(dp);
         }
-        closedir(dp);
-        if(!okok) {
-            printf("\n"); 
-        }
-        return ;
     }
+    return ;
 }
 
+
 /* ls >> */
-void ls_input()
+void ls_input(int flag)
 {
     char* name[MAX]={};
     int sum=0;
@@ -313,19 +404,37 @@ void ls_input()
         input_file[sum_input++]=s[i];
     }
     FILE *fp;
-    if(fp=fopen(input_file,"w")){
-        for(int j=0;j<sum;j++) {
-            if(j==sum-1) {
-                fprintf(fp,"%s",name[j]);
+    if(flag==2) {
+        if(fp=fopen(input_file,"a")){
+            for(int j=0;j<sum;j++) {
+                if(j==sum-1) {
+                    fprintf(fp,"%s",name[j]);
+                }
+                else {
+                    fprintf(fp,"%s\n",name[j]);
+                }
             }
-            else {
-                fprintf(fp,"%s\n",name[j]);
-            }
+        }
+        else {
+            perror("open file ");
+            return;
         }
     }
     else {
-        perror("open file ");
-        return;
+        if(fp=fopen(input_file,"w")){
+            for(int j=0;j<sum;j++) {
+                if(j==sum-1) {
+                    fprintf(fp,"%s",name[j]);
+                }
+                else {
+                    fprintf(fp,"%s\n",name[j]);
+                }
+            }
+        }
+        else {
+            perror("open file ");
+            return;
+        }
     }
     fclose(fp);
     closedir(dp);
@@ -426,8 +535,13 @@ void order(char *s)
     }
     
     /* ls >> */
-    else if(memcmp(s,"ls >>",5)==0) {
-        ls_input();
+    else if(memcmp(s,"ls >",4)==0) {
+        if(s[4]=='>') {
+            ls_input(2);
+        }
+        else {
+            ls_input(1);
+        }
     }
 
     else if (memcmp(s,"ls -",4)==0) {
@@ -474,20 +588,16 @@ void order(char *s)
             strcpy(history[cnt++],path);
         }
     }
+
     /* cd / 绝对路径 */
     else if(memcmp(s,"cd /",4)==0) {
-        strcpy(history[cnt++],path);
         my_copy_cd();
-        chdir(path);
-        strcpy(history[cnt++],path);
     }
     /* cd ./ 相对路径 */
     else if(memcmp(s,"cd ./",5)==0) {
-        strcpy(history[cnt++],path);
         my_ocopy_cd();
-        chdir(path);
-        strcpy(history[cnt++],path);
     }
+
     /* cd .. 返回上级目录 */
     else if(strcmp(s,"cd ..")==0) {
         strcpy(history[cnt++],path);
@@ -497,6 +607,7 @@ void order(char *s)
         strcpy(path,tempdir);
         strcpy(history[cnt++],path);
     }
+
     /* cd ~ 返回根目录(home) */
     else if(strcmp(s,"cd ~")==0) {
         strcpy(history[cnt++],path);
@@ -644,7 +755,7 @@ void my_grep()
     fclose(fp);
 }
 
-/* wc 显示文件信息 */
+/* wc (-c -l) 显示文件信息 */
 void my_wc(char ch) 
 {
     int i=5;
@@ -733,7 +844,6 @@ void mkcdd()
     for(;i<strlen(s)&&s[i]!=' ';i++) {
         newdir_name[newname_sum++]=s[i];
     }
-    printf("%s\n",newdir_name);
     mkdir(newdir_name,0777);
     char new_path[SIZE]={};
     strcpy(new_path,path);
@@ -743,7 +853,7 @@ void mkcdd()
     strcpy(path,new_path);
 }
 
-/* 确定命令 */
+/* 确定 echo 命令 */
 char* check_order(char *my_input)
 {
     int len=strlen(my_input);
@@ -759,7 +869,6 @@ char* check_order(char *my_input)
             cnt2++;
         }
     }
-    //echo <1.txt> 3.txt
     int new_sum=0;
     char *new_input=(char*)calloc(MAX,sizeof(char));
     if(cnt1%2==0&&cnt1!=0) {
@@ -927,7 +1036,6 @@ void sure_cd()
     int i=3;
     char cd_filename[MAX]={};
     int sum_cd=0;
-    
     while(s[i]==' ') {
         i++;
     }
@@ -962,76 +1070,206 @@ void cd()
     return ;
 }
 
+/* 判断文件或者目录存在 */
+int cunzai(char *ss)
+{
+    char* name[MAX]={};
+    int sum=0;
+	DIR* dp=opendir(getcwd(path,sizeof(path)));
+	if(dp==NULL) {
+		perror("opendir ");
+		return -1;
+	}
+	struct dirent* dr=readdir(dp);
+	for(;dr;dr=readdir(dp))
+	{
+		if(dr->d_name[0]=='.') 
+			continue;
+		name[sum++]=dr->d_name;
+	}
+    for(int i=0;i<sum;i++) {
+        if(strcmp(name[i],ss)==0) {
+            return 1;
+        }
+    }
+    return -1;
+}
+
 /* cd 绝对路径 */
 void my_copy_cd()
 {
-    int n=0;
-    char opath[SIZE]={};
-    for(int i=3;i<strlen(s);i++) {
-        opath[n++]=s[i];
+    char last[MAX]={};
+    int last_sum=0;
+    for(int i=strlen(s)-1;i>=0&&s[i]!='/';i--) {
+        if(s[i]==' ') {
+            continue;
+        }
+        last[last_sum++]=s[i];
     }
-    strcpy(path,opath);
+    for(int i=0,j=last_sum-1;i<last_sum/2&&j>last_sum/2-1;i++,j--) {
+        char ch=last[i];
+        last[i]=last[j];
+        last[j]=ch;
+    }
+    if(cunzai(last)>0) {
+        strcpy(history[cnt++],path);
+        int n=0;
+        char opath[SIZE]={};
+        for(int i=3;i<strlen(s)&&s[i]!=' ';i++) {
+            opath[n++]=s[i];
+        }
+        strcpy(path,opath);
+        chdir(path);
+        strcpy(history[cnt++],path);
+    }
+    else  {
+        printf("no such a dir or a file !\n");
+    }
     return;
 }
 
 /* cd 相对路径 */
 void my_ocopy_cd()
 {
-    int n=0;
-    char opath[SIZE]={};
-    for(int i=4;i<strlen(s);i++) {
-        opath[n++]=s[i];
+    char last[MAX]={};
+    int last_sum=0;
+    for(int i=strlen(s)-1;i>=0&&s[i]!='/';i--) {
+        if(s[i]==' ') {
+            continue;
+        }
+        last[last_sum++]=s[i];
     }
-    strcat(path,opath);
+    for(int i=0,j=last_sum-1;i<last_sum/2&&j>last_sum/2-1;i++,j--) {
+        char ch=last[i];
+        last[i]=last[j];
+        last[j]=ch;
+    }
+    if(cunzai(last)>0) {
+        strcpy(history[cnt++],path);
+        int n=0;
+        char opath[SIZE]={};
+        for(int i=4;i<strlen(s);i++) {
+            opath[n++]=s[i];
+        }
+        strcat(path,opath);
+        chdir(path);
+        strcpy(history[cnt++],path);
+    }
+    else  {
+        printf("no such a dir or a file !\n");
+    }
     return;
+}
+
+/* 判断是否为文件 */
+int is_file(char *s) 
+{
+    struct stat buf;
+	if(stat(s,&buf)) {
+		perror("stat ");
+		return -1;
+	}
+    if(!S_ISDIR(buf.st_mode)) {
+        return 1;
+    }
+    return -1;
 }
 
 /* cat 绝对路径 */
 void my_copy_cat(char *s)
 {
+    int i=4;
+    while(s[i]==' ') {
+        i++;
+    }
     int n=0;
     char opath[SIZE]={};
-    for(int i=4;i<strlen(s);i++) {
+    for(;i<strlen(s)&&s[i]!=' ';i++) {
         opath[n++]=s[i];
     }
-    FILE *fp=fopen(opath,"r");
-    if(fp==NULL) {
-        perror("open file ");
-        return;
-    }
-    while(!feof(fp)) {
-        int ch;
-        if((ch=fgetc(fp))!=EOF) {
-            putchar(ch);
+    char last[MAX]={};
+    int last_sum=0;
+    for(int j=strlen(s)-1;j>=0&&s[j]!='/';j--) {
+        if(s[j]==' ') {
+            continue;
         }
+        last[last_sum++]=s[j];
     }
-    putchar('\n');
-    fclose(fp);
-    return;
+
+    for(int o=0,k=last_sum-1;o<last_sum/2&&k>last_sum/2-1;o++,k--) {
+        char ch=last[o];
+        last[o]=last[k];
+        last[k]=ch;
+    }
+    if(cunzai(last)>0&&is_file(last)>0) {
+        FILE *fp=fopen(opath,"r");
+        if(fp==NULL) {
+            perror("open file ");
+            return;
+        }
+        while(!feof(fp)) {
+            int ch;
+            if((ch=fgetc(fp))!=EOF) {
+                putchar(ch);
+            }
+        }
+        fclose(fp);
+        putchar('\n');
+    }
+    else {
+        printf("%s is not a file !\n",last);
+    }
+    return;  
 }
 
 /* cat 相对路径 */
 void my_ocopy_cat(char *s)
 {
+    int i=5;
+    while(s[i]==' ') {
+        i++;
+    }
     int n=0;
     char opath[SIZE]={};
-    for(int i=6;i<strlen(s);i++) {
+    char oopath[SIZE]={};
+    for(;i<strlen(s)&&s[i]!=' ';i++) {
         opath[n++]=s[i];
     }
-    FILE *fp=fopen(opath,"r");
-    if(fp==NULL) {
-        perror("open file ");
-        return;
-    }
-    while(!feof(fp)) {
-        int ch;
-        if((ch=fgetc(fp))!=EOF) {
-            putchar(ch);
+    strcat(oopath,path);
+    strcat(oopath,opath);
+    char last[MAX]={};
+    int last_sum=0;
+    for(int j=strlen(s)-1;j>=0&&s[j]!='/';j--) {
+        if(s[j]==' ') {
+            continue;
         }
+        last[last_sum++]=s[j];
     }
-    putchar('\n');
-    fclose(fp);
-    return;
+
+    for(int o=0,k=last_sum-1;o<last_sum/2&&k>last_sum/2-1;o++,k--) {
+        char ch=last[o];
+        last[o]=last[k];
+        last[k]=ch;
+    }
+    if(cunzai(last)>0&&is_file(last)>0) {
+        FILE *fp=fopen(oopath,"r");
+        if(fp==NULL) {
+            perror("open file ");
+            return;
+        }
+        while(!feof(fp)) {
+            int ch;
+            if((ch=fgetc(fp))!=EOF) {
+                putchar(ch);
+            }
+        }
+        fclose(fp);
+        putchar('\n');
+    }
+    else {
+        printf("%s is not a file !\n",last);
+    }
+    return; 
 } 
 
 /* cat 指定文件 */
@@ -1050,7 +1288,7 @@ void my_oocopy_cat(char *s)
         }
         opath[n++]=s[i];
     }
-    /* cat & "filenam" -- 单后台运行显示指定文件 */
+    /* cat & "filename" -- 单后台运行显示指定文件 */
     if(flag) {
         if(daemon(1,1)<0)// 0：根目录 ; 1：当前目录 
         {
@@ -1060,23 +1298,28 @@ void my_oocopy_cat(char *s)
 	    sleep(4);
         putchar('\n');
     }
-    FILE *fp=fopen(opath,"r");
-    if(fp==NULL) {
-        perror("open file ");
-        return;
-    }
-    while(!feof(fp)) {
-        int ch;
-        if((ch=fgetc(fp))!=EOF) {
-            putchar(ch);
+    if(cunzai(opath)>0&&is_file(opath)>0) {
+        FILE *fp=fopen(opath,"r");
+        if(fp==NULL) {
+            perror("open file ");
+            return;
         }
+        while(!feof(fp)) {
+            int ch;
+            if((ch=fgetc(fp))!=EOF) {
+                putchar(ch);
+            }
+        }
+        if(flag) {
+            printf("\n[1]  + %d done       cat %s",getpid(),opath);
+            exit(0);//后台运行后退出
+        }
+        putchar('\n');
+        fclose(fp);   
     }
-    if(flag) {
-        printf("\n[1]  + %d done       cat %s",getpid(),opath);
-        exit(0);//后台运行后退出
+    else {
+        printf("%s is not a file !\n",opath);
     }
-    putchar('\n');
-    fclose(fp);   
     return;
 }
 
