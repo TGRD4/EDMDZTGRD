@@ -401,16 +401,19 @@ getpwuid()用来逐一搜索参数 uid 指定的用户识别码,
 
 /* & 后台运行 */
 void exec_daemon() {
+    int fd=0;
     if(daemon(1,1)<0) {
         perror("daemon ");
+        exit(1);
     }
     sleep(4);
-    int fd=0;
+
     int pid=fork();    
     if(pid>0) {       
         waitpid(pid,NULL,0);       
         return;
-    }   
+    } 
+
     char* shell_argv[SIZE]={};
     copy_argv(shell_argv);
     if(flag==1) {
@@ -422,6 +425,7 @@ void exec_daemon() {
         dup2(fd,1);          
     }
     execvp(shell_argv[0],shell_argv);
+    exit(0);
 }
 
 /* 主函数 */
@@ -430,6 +434,7 @@ int main() {
     while (1) {
         int flagg=0;
         show();
+        
         fgets(order,sizeof(order),stdin);
 /*
 sscanf()
@@ -464,7 +469,6 @@ sscanf()
                 printf("shell is running now!\n");
             }
             else if (strcmp(argv[0],"ls") == 0) {
-                printf("jin\n");
                 exec_ls();
             } 
             else if (strcmp(argv[0],"pwd") == 0) {
