@@ -17,8 +17,7 @@ int cnt;
 char order[SIZE];        //保存当前的命令行输入
 char argv[MAX][SIZE];   //根据命令行输入等到的命令参数
 int argc;               //命令参数个数
-int flag1;               //判断是否有重定向符号
-int flag2;
+int flag;               //判断是否有重定向符号
 char *file;             //记录重定向目标文件
 char history[MAX][SIZE];
 
@@ -47,19 +46,13 @@ void copy_argv(char* shell_argv[]) {
     for(int i=0;i<argc;i++) {
         shell_argv[i]=argv[i];
         if(strcmp(shell_argv[i],">")==0) {      //标记命令中有输出重定向
-            flag1=1;
+            flag=1;
         }
         else if(strcmp(shell_argv[i],">>")==0) {
-            flag1=2;
+            flag=2;
         }
-        /*
-        else if(strcmp(shell_argv[i],"&")==0) {
-            flag2=1;
-            break;
-        }
-        */
     }
-    if(flag1==1) {                                  
+    if(flag==1) {                                  
         for(int i=0;i<argc;i++) {
             if(strcmp(shell_argv[i],">")==0) {  
                 shell_argv[i]=NULL;
@@ -67,7 +60,7 @@ void copy_argv(char* shell_argv[]) {
             }
         }
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         for(int i=0;i<argc;i++) {
             if(strcmp(shell_argv[i],">>")==0) { 
                 shell_argv[i]=NULL; 
@@ -83,25 +76,21 @@ void copy_argvv(char *shell_argv[],int i) {
     for(;i<argc;i++,k++) {
         shell_argv[k]=argv[i];
         if(strcmp(shell_argv[k],">")==0) {      //标记命令中有输出重定向
-            flag1=1;
+            flag=1;
         }
         else if(strcmp(shell_argv[k],">>")==0) {
-            flag1=2;
+            flag=2;
         }
     }
-/*
-ls | wc -l > 1.txt
-*/
-    if(flag1==1) {                                
+    if(flag==1) {                                
         for(int i=0;i<k;i++) {
             if(strcmp(shell_argv[i],">")==0) { 
-                printf("%d\n",i); 
                 file=shell_argv[i+1];         //截断重定向后的内容指向重定向文件
                 shell_argv[i]=NULL;           //保留重定向前的内容作为命令返还
             }
         }
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         for(int i=0;i<k;i++) {
             if(strcmp(shell_argv[i],">>")==0) { 
                 file=shell_argv[i+1]; 
@@ -121,12 +110,12 @@ void exec_ls() {
     }
     char* shell_argv[SIZE]={};
     copy_argv(shell_argv);
-    if(flag1==1) {	            //如果命令中存在重定向
+    if(flag==1) {	            //如果命令中存在重定向
         fd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         //open 返回值：若所有欲核查的权限都通过了检查则返回 0 值, 表示成功, 只要有一个权限被禁止则返回-1
         dup2(fd,1);             //指定新文件描述符为1，1为标准输出，0为标准输入
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         fd=open(file,O_RDWR | O_APPEND,0644);
         //open 返回值：若所有欲核查的权限都通过了检查则返回 0 值, 表示成功, 只要有一个权限被禁止则返回-1
         dup2(fd,1);             //指定新文件描述符为1，1为标准输出，0为标准输入
@@ -202,11 +191,11 @@ void exec_echo() {
     int fd=0;
     char* shell_argv[SIZE]={};    
     copy_argv(shell_argv);
-    if(flag1==1) {
+    if(flag==1) {
         fd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         dup2(fd,1);  
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         fd=open(file,O_RDWR | O_APPEND,0644);
         dup2(fd,1);          
     }
@@ -305,11 +294,11 @@ void exec_grep() {
     int fd=0;
     char* shell_argv[SIZE]={};    
     copy_argv(shell_argv); 
-    if(flag1==1) {
+    if(flag==1) {
         fd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         dup2(fd,1);  
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         fd=open(file,O_RDWR | O_APPEND,0644);
         dup2(fd,1);          
     } 
@@ -326,11 +315,11 @@ void exec_wc() {
     int fd=0;
     char* shell_argv[SIZE]={};    
     copy_argv(shell_argv); 
-    if(flag1==1) {
+    if(flag==1) {
         fd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         dup2(fd,1);  
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         fd=open(file,O_RDWR | O_APPEND,0644);
         dup2(fd,1);          
     }  
@@ -359,22 +348,22 @@ void exec_pipe() {
     for(;i<argc;k++,i++) {
         next_file[k]=argv[i];
         if(strcmp(argv[i],">")==0) {
-            flag1=1;
+            flag=1;
             next_file[k]=NULL;
             file=argv[i+1];
         }
         else if(strcmp(argv[i],">>")==0) {
-            flag1=2;
+            flag=2;
             next_file[k]=NULL;
             file=argv[i+1];
         }
     }
-    if(flag1==1) {	            //如果命令中存在重定向
+    if(flag==1) {	            //如果命令中存在重定向
         fdd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         //open 返回值：若所有欲核查的权限都通过了检查则返回 0 值, 表示成功, 只要有一个权限被禁止则返回-1
         dup2(fdd,1);             //指定新文件描述符为1，1为标准输出，0为标准输入
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         fdd=open(file,O_RDWR | O_APPEND,0644);
         //open 返回值：若所有欲核查的权限都通过了检查则返回 0 值, 表示成功, 只要有一个权限被禁止则返回-1
         dup2(fdd,1);             //指定新文件描述符为1，1为标准输出，0为标准输入
@@ -396,10 +385,6 @@ void exec_pipe() {
         }
     }
 }
-/*
-ls -l -a | wc -l > 2.txt
-ls | wc -l > 2.txt
-*/
 
 /* 显示 shell 提示内容 */
 void show() {
@@ -425,11 +410,11 @@ void exec_daemon() {
     int fd=0;
     char* shell_argv[SIZE]={};    
     copy_argv(shell_argv); 
-    if(flag1==1) {
+    if(flag==1) {
         fd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         dup2(fd,1);  
     }
-    else if(flag1==2) {
+    else if(flag==2) {
         fd=open(file,O_RDWR | O_APPEND,0644);
         dup2(fd,1);          
     }  
@@ -468,11 +453,6 @@ sscanf()
             else if(strcmp(argv[0],"./cxy-super-shell")==0) {
                 printf("shell is running now!\n");
             }
-            /*
-            if(strcmp(argv[0],"&")==0) {
-                exec_daemon();
-            }
-            */
             else if (strcmp(argv[0],"ls") == 0) {
                 exec_ls();
             } 
@@ -510,7 +490,6 @@ sscanf()
                 exec_cat(); 
             }
             else if(strcmp(argv[0],"wc")==0) {
-                printf("jinlewc\n");
                 exec_wc();
             }
             else if(strcmp(argv[0],"grep")==0) {
@@ -523,4 +502,3 @@ sscanf()
     }
     return 0;
 }
-
