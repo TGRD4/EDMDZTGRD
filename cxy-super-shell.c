@@ -37,13 +37,13 @@ void exec_move();
 void exec_help();
 void exec_mkdir();
 void exec_touch();
-//void exec_daemon();
+void exec_daemon();
 void copy_argv(char* shell_argv[]);
 void copy_argvv(char *shell_argv[],int i);
 
 /* 将命令参数拷贝到当前命令中 并且判断重定向 */
 void copy_argv(char* shell_argv[]) {
-    for(int i=0;i<argc;i++) {
+    for(int i=0;i<argc&&strcmp(argv[i],"&")!=0;i++) {
         shell_argv[i]=argv[i];
         if(strcmp(shell_argv[i],">")==0) {      //标记命令中有输出重定向
             flag=1;
@@ -152,7 +152,7 @@ void exec_cd() {
             sign=2;
             break;
         }
-    } 
+    }
     if(argc!=2) return;             //若未指定切换路径则直接返回
     getcwd(history[cnt++],SIZE);
     if(sign==0) {
@@ -400,16 +400,19 @@ getpwuid()用来逐一搜索参数 uid 指定的用户识别码,
 */
 
 /* & 后台运行 */
-/*
 void exec_daemon() {
+    if(daemon(1,1)<0) {
+        perror("daemon ");
+    }
+    sleep(4);
+    int fd=0;
     int pid=fork();    
     if(pid>0) {       
         waitpid(pid,NULL,0);       
         return;
     }   
-    int fd=0;
-    char* shell_argv[SIZE]={};    
-    copy_argv(shell_argv); 
+    char* shell_argv[SIZE]={};
+    copy_argv(shell_argv);
     if(flag==1) {
         fd=open(file,O_RDWR | O_CREAT | O_TRUNC,0644);
         dup2(fd,1);  
@@ -417,16 +420,15 @@ void exec_daemon() {
     else if(flag==2) {
         fd=open(file,O_RDWR | O_APPEND,0644);
         dup2(fd,1);          
-    }  
-    execvp("&",shell_argv); 
+    }
+    execvp(shell_argv[0],shell_argv);
 }
-*/
 
 /* 主函数 */
 int main() {   
     signal(SIGINT,SIG_IGN);         //防止 ctrl+c 杀死进程（信号屏蔽）
     while (1) {
-        int flag=0;
+        int flagg=0;
         show();
         fgets(order,sizeof(order),stdin);
 /*
@@ -438,12 +440,20 @@ sscanf()
             argv[0],argv[1],argv[2],argv[3],argv[4], 
             argv[5],argv[6],argv[7],argv[8],argv[9]); 
         for(int i=0;i<argc;i++) {
-            if(strcmp(argv[i],"|")==0) {
-                flag=1;
-                exec_pipe();
+            if(strcmp(argv[i],"&")==0) {
+                flagg=1;
+                exec_daemon();
             }
         }
-        if(flag==1) {
+        if(flagg==0) {
+            for(int i=0;i<argc;i++) {
+                if(strcmp(argv[i],"|")==0) {
+                    flagg=2;
+                    exec_pipe();
+                }
+            }
+        }
+        if(flagg==1||flagg==2) {
             continue;
         }
         else {
@@ -454,6 +464,7 @@ sscanf()
                 printf("shell is running now!\n");
             }
             else if (strcmp(argv[0],"ls") == 0) {
+                printf("jin\n");
                 exec_ls();
             } 
             else if (strcmp(argv[0],"pwd") == 0) {
